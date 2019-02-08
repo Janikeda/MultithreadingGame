@@ -5,6 +5,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class ThiefThread extends Thread {
@@ -12,6 +13,7 @@ public class ThiefThread extends Thread {
 
     private final ApartmentActionPlace actionPlace;
     private Thief thief;
+    private String thiefName = "\"Вор потока " + this.getName().replaceAll("\\D+", "") + "\"";
 
     ThiefThread(ApartmentActionPlace actionPlace, Thief thief) {
         this.actionPlace = actionPlace;
@@ -19,29 +21,34 @@ public class ThiefThread extends Thread {
     }
 
     public void run() {
-        LOGGER.info("Запуск потока Вора");
-        LOGGER.info("Вор проверяет есть ли в квартире хозяин");
+        LOGGER.info("Старт потока: " + thiefName);
 
-        try {
-            synchronized (actionPlace) {
-                List<Thing> thingList;
-                List<String> resultInfo;
-                while (actionPlace.getFlag() != 1) {
+        List<Thing> thingList;
+        List<String> resultInfo;
+        List<Thing> thingsForReturn = Collections.emptyList();
+
+        while (actionPlace.getIsOwnerInHome().get() || actionPlace.getIsThiefInHome().get() || actionPlace.getAmountOfThings() == 0) {
+            try {
+                synchronized (actionPlace) {
                     actionPlace.wait();
                 }
-                while (!thief.isFull()) {
-                    thief.putIntoBackpack(actionPlace.steal());
-                }
-                actionPlace.setFlag(0);
-
-                thingList = thief.getListAfterChecking();
-                resultInfo = calculateResult(thingList);
-
-                LOGGER.info("Итого вор украл вещей: " + thingList.size() + ". На общую ценность: " + resultInfo.get(1) + ". На общий вес: " + resultInfo.get(0) +
-                        ". Предельный размер рюкзака: " + thief.getBackpackMaxWeight() + " кг.");
+            } catch (InterruptedException e) {
+                LOGGER.error(e);
             }
-        } catch (InterruptedException e) {
-            LOGGER.error(e);
+        }
+        actionPlace.getIsThiefInHome().set(true);
+        while (!thief.isFull()) {
+            Collections.addAll(thief.putIntoBackpack(actionPlace.stealCurrentApartment()));
+        }
+        actionPlace.getBackForThief(thingsForReturn);
+        thingList = thief.getListAfterChecking();
+        resultInfo = calculateResult(thingList);
+
+        LOGGER.info("Итого вор украл вещей: " + thingList.size() + ". На общую ценность: " + resultInfo.get(1) + ". На общий вес: " + resultInfo.get(0) +
+                ". Предельный размер рюкзака: " + thief.getBackpackMaxWeight() + " кг.");
+        actionPlace.getIsThiefInHome().set(false);
+        synchronized (actionPlace){
+            actionPlace.notify();
         }
     }
 

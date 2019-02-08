@@ -1,14 +1,12 @@
 package model;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
 public class Owner extends AbstractNamedEntity {
     /* Набор вещей, которые есть у хозяина*/
-    private List<Thing> thingList = new ArrayList<>(Arrays.asList(new Thing(7, 9), new Thing(14, 19), new Thing(19, 11), new Thing(2, 5),
-            new Thing(21, 20), new Thing(2, 5), new Thing(3, 9), new Thing(9, 3)));
+    private List<Thing> thingList = createThingList();
 
 
     public Thing getThing() {
@@ -21,5 +19,18 @@ public class Owner extends AbstractNamedEntity {
 
     public boolean isThingListEmpty() {
         return thingList.isEmpty();
+    }
+
+    public int getAmountOfThings() {
+        return thingList.size();
+    }
+
+    private List<Thing> createThingList() {
+        List<Thing> thingList = new ArrayList<>();
+        Random random = new Random();
+        for (int i = 0; i < (random.nextInt(12 - 5 + 1) + 5); i++) {
+            thingList.add(new Thing(random.nextInt(24), random.nextInt(40)));
+        }
+        return thingList;
     }
 }

@@ -2,26 +2,31 @@ package model;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class Thief extends AbstractNamedEntity {
     private int currentWeight;
     private boolean isFull = false;
 
 
-    public void putIntoBackpack(Thing thing) {
+    public List<Thing> putIntoBackpack(List<Thing> thingList) {
         List<Thing> backpackList = Backpack.backpackList;
+        List<Thing> thingsForReturn = thingList;
 
-        if (currentWeight < Backpack.MAX_WEIGHT) {
-            backpackList.add(thing);
-            currentWeight = currentWeight + thing.getWeight();
-        } else {
-            setFull(true);
+        for (Thing thing : thingList) {
+            if (currentWeight < Backpack.MAX_WEIGHT) {
+                backpackList.add(thing);
+                thingsForReturn.remove(thing);
+                currentWeight = currentWeight + thing.getWeight();
+            } else {
+                setFull(true);
+            }
         }
+        return thingsForReturn;
     }
 
     public List<Thing> getListAfterChecking() {
-        List<Thing> thingList = Backpack.backpackList.stream().sorted((v1, v2) -> Integer.compare(v2.getValue(), v1.getValue())).collect(Collectors.toList());
+        List<Thing> thingList = Backpack.backpackList;
+                //Backpack.backpackList.stream().sorted((v1, v2) -> Integer.compare(v2.getValue(), v1.getValue())).collect(Collectors.toList());
 
         while (currentWeight >= Backpack.MAX_WEIGHT) {
             Thing lessValueThing = thingList.get(thingList.size() - 1);

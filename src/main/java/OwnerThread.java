@@ -8,6 +8,7 @@ public class OwnerThread extends Thread {
 
     private final ApartmentActionPlace actionPlace;
     private Owner owner;
+    private String ownerName = "\"Хозяин потока " + this.getName().replaceAll("\\D+", "") + "\"";
 
     OwnerThread(ApartmentActionPlace actionPlace, Owner owner) {
         this.actionPlace = actionPlace;
@@ -15,19 +16,26 @@ public class OwnerThread extends Thread {
     }
 
     public void run() {
-        LOGGER.info("Запуск потока Хозяина");
+        LOGGER.info("Старт потока: " + ownerName + " Всего вещей: " + owner.getAmountOfThings());
 
-        synchronized (actionPlace) {
-            try {
-                while (!owner.isThingListEmpty()) {
-                    actionPlace.put(owner.getThing());
+        try {
+            while (actionPlace.getIsThiefInHome().get()){
+                synchronized (actionPlace) {
+                    actionPlace.wait();
                 }
-                actionPlace.setFlag(1);
-                actionPlace.notify();
-            } catch (InterruptedException e) {
-                LOGGER.error(e);
             }
-            LOGGER.info("Хозяин выложил все вещи в квартиру");
+            actionPlace.getIsOwnerInHome().set(true);
+
+            while (!owner.isThingListEmpty()) {
+                actionPlace.put(owner.getThing(), ownerName);
+            }
+            actionPlace.getIsOwnerInHome().set(false);
+            synchronized (actionPlace) {
+                actionPlace.notify();
+            }
+        } catch (InterruptedException e) {
+            LOGGER.error(e);
         }
+        LOGGER.info(ownerName + (owner.getAmountOfThings() == 0 ? " выложил все вещи в квартиру" : "имеет еще вещей " + owner.getAmountOfThings()));
     }
 }
