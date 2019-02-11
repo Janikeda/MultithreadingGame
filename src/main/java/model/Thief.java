@@ -6,35 +6,38 @@ import java.util.List;
 public class Thief extends AbstractNamedEntity {
     private int currentWeight;
     private boolean isFull = false;
+    private Backpack backpack = new Backpack();
 
 
     public List<Thing> putIntoBackpack(List<Thing> thingList) {
-        List<Thing> backpackList = Backpack.backpackList;
-        List<Thing> thingsForReturn = thingList;
+        List<Thing> backpackList = backpack.backpackList;
+        List<Thing> list = thingList;
 
-        for (Thing thing : thingList) {
+        for (Thing thing : list) {
             if (currentWeight < Backpack.MAX_WEIGHT) {
                 backpackList.add(thing);
-                thingsForReturn.remove(thing);
-                currentWeight = currentWeight + thing.getWeight();
+                currentWeight += thing.getWeight();
             } else {
                 setFull(true);
+                break;
             }
         }
-        return thingsForReturn;
+        list.removeAll(backpackList);
+        return list;
     }
 
-    public List<Thing> getListAfterChecking() {
-        List<Thing> thingList = Backpack.backpackList;
-                //Backpack.backpackList.stream().sorted((v1, v2) -> Integer.compare(v2.getValue(), v1.getValue())).collect(Collectors.toList());
+    public List<Thing> getListAfterChecking(List<Thing> currentListInAppartment) {
+        List<Thing> backpackList = backpack.backpackList;
+        List<Thing> appartmentListThings = currentListInAppartment;
 
         while (currentWeight >= Backpack.MAX_WEIGHT) {
-            Thing lessValueThing = thingList.get(thingList.size() - 1);
+            Thing lessValueThing = backpackList.get(backpackList.size() - 1);
             LOGGER.info("Последняя вещь превысила размер рюкзака - удаляем ее!");
-            currentWeight = currentWeight - lessValueThing.getWeight();
-            thingList.remove(thingList.size() - 1);
+            currentWeight -= lessValueThing.getWeight();
+            backpackList.remove(backpackList.size() - 1);
+            appartmentListThings.add(lessValueThing);
         }
-        return thingList;
+        return appartmentListThings;
     }
 
     public boolean isFull() {
@@ -49,8 +52,12 @@ public class Thief extends AbstractNamedEntity {
         return String.valueOf(Backpack.MAX_WEIGHT);
     }
 
-    private static class Backpack {
-        private static final int MAX_WEIGHT = 55;
-        private static List<Thing> backpackList = new ArrayList<>();
+    public List<Thing> getBackpackListThing() {
+        return backpack.backpackList;
+    }
+
+    private class Backpack {
+        private static final int MAX_WEIGHT = 50;
+        private List<Thing> backpackList = new ArrayList<>();
     }
 }

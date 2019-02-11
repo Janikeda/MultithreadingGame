@@ -11,7 +11,7 @@ import java.util.List;
 public class ThiefThread extends Thread {
     private static final Logger LOGGER = LogManager.getLogger();
 
-    private final ApartmentActionPlace actionPlace;
+    private ApartmentActionPlace actionPlace;
     private Thief thief;
     private String thiefName = "\"Вор потока " + this.getName().replaceAll("\\D+", "") + "\"";
 
@@ -22,10 +22,13 @@ public class ThiefThread extends Thread {
 
     public void run() {
         LOGGER.info("Старт потока: " + thiefName);
+        this.steal();
+    }
 
+    private synchronized void steal() {
         List<Thing> thingList;
-        List<String> resultInfo;
         List<Thing> thingsForReturn = Collections.emptyList();
+        List<String> resultInfo;
 
         while (actionPlace.getIsOwnerInHome().get() || actionPlace.getIsThiefInHome().get() || actionPlace.getAmountOfThings() == 0) {
             try {
@@ -36,18 +39,31 @@ public class ThiefThread extends Thread {
                 LOGGER.error(e);
             }
         }
+
         actionPlace.getIsThiefInHome().set(true);
+        LOGGER.info(thiefName + " в доме!");
+
         while (!thief.isFull()) {
-            Collections.addAll(thief.putIntoBackpack(actionPlace.stealCurrentApartment()));
+            thingsForReturn = thief.putIntoBackpack(actionPlace.stealCurrentApartment(thiefName));
         }
-        actionPlace.getBackForThief(thingsForReturn);
-        thingList = thief.getListAfterChecking();
+
+        actionPlace.getBackForThief(thief.getListAfterChecking(thingsForReturn));
+        thingList = thief.getBackpackListThing();
         resultInfo = calculateResult(thingList);
 
-        LOGGER.info("Итого вор украл вещей: " + thingList.size() + ". На общую ценность: " + resultInfo.get(1) + ". На общий вес: " + resultInfo.get(0) +
+        LOGGER.info("Итого " + thiefName + " украл вещей: " + thingList.size() + ". На общую ценность: " + resultInfo.get(1) + ". На общий вес: " + resultInfo.get(0) +
                 ". Предельный размер рюкзака: " + thief.getBackpackMaxWeight() + " кг.");
+
+        actionPlace.getNumberOfThieves().incrementAndGet();
+
         actionPlace.getIsThiefInHome().set(false);
-        synchronized (actionPlace){
+        LOGGER.info(thiefName + " вышел из дома!");
+
+        if (actionPlace.isLastParticipant()) {
+            LOGGER.info("Всего в квартире осталось вещей: " + actionPlace.getAmountOfThings());
+        }
+
+        synchronized (actionPlace) {
             actionPlace.notify();
         }
     }
