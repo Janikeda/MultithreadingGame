@@ -16,7 +16,7 @@ public class ApartmentActionPlace {
 
     /* Количество участников (потоков)*/
     public static final int AMOUNT_THREADS_OWNER = 3;
-    public static final int AMOUNT_THREADS_THIEF = 2;
+    public static final int AMOUNT_THREADS_THIEF = 3;
 
     /* Коллекция хранения вещей. Куда хозяин будет класть, а вор брать*/
     private List<Thing> thingList = Collections.synchronizedList(new ArrayList<>());

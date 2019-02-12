@@ -11,7 +11,7 @@ import java.util.List;
 public class ThiefThread extends Thread {
     private static final Logger LOGGER = LogManager.getLogger();
 
-    private ApartmentActionPlace actionPlace;
+    private final ApartmentActionPlace actionPlace;
     private Thief thief;
     private String thiefName = "\"Вор потока " + this.getName().replaceAll("\\D+", "") + "\"";
 
@@ -22,14 +22,10 @@ public class ThiefThread extends Thread {
 
     public void run() {
         LOGGER.info("Старт потока: " + thiefName);
-        this.steal();
+        steal();
     }
 
     private synchronized void steal() {
-        List<Thing> thingList;
-        List<Thing> thingsForReturn = Collections.emptyList();
-        List<String> resultInfo;
-
         while (actionPlace.getIsOwnerInHome().get() || actionPlace.getIsThiefInHome().get() || actionPlace.getAmountOfThings() == 0) {
             try {
                 synchronized (actionPlace) {
@@ -42,6 +38,10 @@ public class ThiefThread extends Thread {
 
         actionPlace.getIsThiefInHome().set(true);
         LOGGER.info(thiefName + " в доме!");
+
+        List<Thing> thingList;
+        List<Thing> thingsForReturn = Collections.synchronizedList(new ArrayList<>());
+        List<String> resultInfo;
 
         while (!thief.isFull()) {
             thingsForReturn = thief.putIntoBackpack(actionPlace.stealCurrentApartment(thiefName));
