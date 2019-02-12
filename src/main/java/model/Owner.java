@@ -28,7 +28,7 @@ public class Owner extends AbstractNamedEntity {
     private List<Thing> createThingList() {
         List<Thing> thingList = new ArrayList<>();
         Random random = new Random();
-        for (int i = 0; i < (random.nextInt(12 - 5 + 1) + 5); i++) {
+        for (int i = 0; i < (random.nextInt(12 - 9 + 1) + 9); i++) {
             thingList.add(new Thing(random.nextInt(24), random.nextInt(40)));
         }
         return thingList;

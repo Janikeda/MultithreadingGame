@@ -5,7 +5,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class ThiefThread extends Thread {
@@ -22,10 +21,7 @@ public class ThiefThread extends Thread {
 
     public void run() {
         LOGGER.info("Старт потока: " + thiefName);
-        steal();
-    }
 
-    private synchronized void steal() {
         while (actionPlace.getIsOwnerInHome().get() || actionPlace.getIsThiefInHome().get() || actionPlace.getAmountOfThings() == 0) {
             try {
                 synchronized (actionPlace) {
@@ -35,19 +31,19 @@ public class ThiefThread extends Thread {
                 LOGGER.error(e);
             }
         }
+        steal();
+    }
 
+    private synchronized void steal() {
         actionPlace.getIsThiefInHome().set(true);
         LOGGER.info(thiefName + " в доме!");
 
         List<Thing> thingList;
-        List<Thing> thingsForReturn = Collections.synchronizedList(new ArrayList<>());
         List<String> resultInfo;
 
-        while (!thief.isFull()) {
-            thingsForReturn = thief.putIntoBackpack(actionPlace.stealCurrentApartment(thiefName));
-        }
+        List<Thing> thingsForReturn = thief.putIntoBackpack(actionPlace.stealCurrentApartment(thiefName));
 
-        actionPlace.getBackForThief(thief.getListAfterChecking(thingsForReturn));
+        actionPlace.getBackForThief(thingsForReturn);
         thingList = thief.getBackpackListThing();
         resultInfo = calculateResult(thingList);
 

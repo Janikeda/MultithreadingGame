@@ -9,7 +9,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 public class ApartmentActionPlace {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -34,14 +33,13 @@ public class ApartmentActionPlace {
         thingList.add(thing);
     }
 
+    /* Вор ворует все текущие вещи в квартире один раз, собирает оптимальный набор в рюкзаке, лишние вещи оставляет в квартире для других воров и покидает квартиру*/
     public List<Thing> stealCurrentApartment(String thiefName) {
         LOGGER.info(thiefName + " ворует все вещи!");
-        List<Thing> thingList = this.thingList.stream()
-                .sorted((v1, v2) -> Integer.compare(v2.getValue(), v1.getValue()))
-                .collect(Collectors.toList());
-        this.thingList.removeAll(thingList);
+        List<Thing> list = new ArrayList<>(this.thingList);
+        this.thingList.removeAll(list);
 
-        return thingList;
+        return list;
     }
 
     public void getBackForThief(List<Thing> thingList) {
