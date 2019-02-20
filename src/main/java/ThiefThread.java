@@ -1,4 +1,5 @@
 import controller.ApartmentActionPlace;
+import model.ParticipantEnum;
 import model.Thief;
 import model.Thing;
 import org.apache.logging.log4j.LogManager;
@@ -6,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ThiefThread extends Thread {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -13,51 +15,58 @@ public class ThiefThread extends Thread {
     private final ApartmentActionPlace actionPlace;
     private Thief thief;
     private String thiefName = "\"Вор потока " + this.getName().replaceAll("\\D+", "") + "\"";
+    private ReentrantLock reentrantLock;
 
-    ThiefThread(ApartmentActionPlace actionPlace, Thief thief) {
+    ThiefThread(ApartmentActionPlace actionPlace, Thief thief, ReentrantLock reentrantLock) {
         this.actionPlace = actionPlace;
         this.thief = thief;
+        this.reentrantLock = reentrantLock;
     }
 
     public void run() {
-        LOGGER.info("Старт потока: " + thiefName);
-
-        while (actionPlace.getIsOwnerInHome().get() || actionPlace.getIsThiefInHome().get() || actionPlace.getAmountOfThings() == 0) {
-            try {
-                synchronized (actionPlace) {
-                    actionPlace.wait();
-                }
-            } catch (InterruptedException e) {
-                LOGGER.error(e);
-            }
-        }
         steal();
     }
 
     private synchronized void steal() {
-        actionPlace.getIsThiefInHome().set(true);
+        reentrantLock.lock();
+        try {
+            while (actionPlace.checkWhoIsInHome(ParticipantEnum.THIEF)) {
+                if (reentrantLock.isHeldByCurrentThread()) {
+                    reentrantLock.unlock();
+                }
+                synchronized (actionPlace) {
+                    actionPlace.wait();
+                }
+            }
+        } catch (InterruptedException e) {
+            LOGGER.error(e);
+        }
+
+        actionPlace.setThiefInHome(true);
+
         LOGGER.info(thiefName + " в доме!");
 
         List<Thing> thingList;
         List<String> resultInfo;
 
-        List<Thing> thingsForReturn = thief.putIntoBackpack(actionPlace.stealCurrentApartment(thiefName));
+        thief.putIntoBackpack(thiefName);
 
-        actionPlace.getBackForThief(thingsForReturn);
         thingList = thief.getBackpackListThing();
         resultInfo = calculateResult(thingList);
 
         LOGGER.info("Итого " + thiefName + " украл вещей: " + thingList.size() + ". На общую ценность: " + resultInfo.get(1) + ". На общий вес: " + resultInfo.get(0) +
                 ". Предельный размер рюкзака: " + thief.getBackpackMaxWeight() + " кг.");
 
-        actionPlace.getNumberOfThieves().incrementAndGet();
+        actionPlace.setNumberOfThieves(actionPlace.getNumberOfThieves() + 1);
 
-        actionPlace.getIsThiefInHome().set(false);
+        actionPlace.setThiefInHome(false);
+        if (reentrantLock.isHeldByCurrentThread()) {
+            reentrantLock.unlock();
+        }
+
         LOGGER.info(thiefName + " вышел из дома!");
 
-        if (actionPlace.isLastParticipant()) {
-            LOGGER.info("Всего в квартире осталось вещей: " + actionPlace.getAmountOfThings());
-        }
+        actionPlace.isLastParticipant();
 
         synchronized (actionPlace) {
             actionPlace.notify();

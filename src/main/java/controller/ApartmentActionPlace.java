@@ -1,5 +1,8 @@
 package controller;
 
+import model.OwnerBuilder;
+import model.ParticipantEnum;
+import model.Thief;
 import model.Thing;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -7,66 +10,83 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ApartmentActionPlace {
     private static final Logger LOGGER = LogManager.getLogger();
 
     /* Количество участников (потоков)*/
-    public static final int AMOUNT_THREADS_OWNER = 3;
-    public static final int AMOUNT_THREADS_THIEF = 3;
+    public static final int AMOUNT_THREADS_OWNER = 1000;
+    public static final int AMOUNT_THREADS_THIEF = 1000;
 
     /* Коллекция хранения вещей. Куда хозяин будет класть, а вор брать*/
-    private List<Thing> thingList = Collections.synchronizedList(new ArrayList<>());
+    private final List<Thing> thingList = Collections.synchronizedList(new ArrayList<>());
 
-    private AtomicBoolean isOwnerInHome = new AtomicBoolean(false);
-    private AtomicBoolean isThiefInHome = new AtomicBoolean(false);
-    /* Подсчет хозяев и воров, чтобы последний распечатал итоги (сколько вещей осталось в квартире)*/
+    private boolean isOwnerInHome;
+    private boolean isThiefInHome;
+    /* Подсчет хозяев и воров, чтобы последний распечатал итоги (сколько вещей осталось в квартире)
+     * Счетчик хозяев будет увеличиваться из разных потоков - сделаем переменную атомарной */
     private AtomicInteger numberOfOwners = new AtomicInteger(0);
-    private AtomicInteger numberOfThieves = new AtomicInteger(0);
+    private int numberOfThieves;
 
 
     public void put(Thing thing, String ownerName) throws InterruptedException {
         LOGGER.info(ownerName + " кладет вещь в квартиру!");
-        Thread.sleep(150);
-        thingList.add(thing);
+        Thread.sleep(50);
+        synchronized (thingList) {
+            thingList.add(thing);
+        }
     }
 
-    /* Вор ворует все текущие вещи в квартире один раз, собирает оптимальный набор в рюкзаке, лишние вещи оставляет в квартире для других воров и покидает квартиру*/
-    public List<Thing> stealCurrentApartment(String thiefName) {
-        LOGGER.info(thiefName + " ворует все вещи!");
-        List<Thing> list = new ArrayList<>(this.thingList);
-        this.thingList.removeAll(list);
-
-        return list;
+    public void setOwnerInHome(boolean ownerInHome) {
+        isOwnerInHome = ownerInHome;
     }
 
-    public void getBackForThief(List<Thing> thingList) {
-        this.thingList.addAll(thingList);
-    }
-
-    public int getAmountOfThings() {
-        return thingList.size();
-    }
-
-    public AtomicBoolean getIsOwnerInHome() {
-        return isOwnerInHome;
-    }
-
-    public AtomicBoolean getIsThiefInHome() {
-        return isThiefInHome;
+    public void setThiefInHome(boolean thiefInHome) {
+        isThiefInHome = thiefInHome;
     }
 
     public AtomicInteger getNumberOfOwners() {
         return numberOfOwners;
     }
 
-    public AtomicInteger getNumberOfThieves() {
+    public int getNumberOfThieves() {
         return numberOfThieves;
     }
 
-    public boolean isLastParticipant() {
-        return numberOfOwners.get() == AMOUNT_THREADS_OWNER && numberOfThieves.get() == AMOUNT_THREADS_THIEF;
+    public void setNumberOfThieves(int numberOfThieves) {
+        this.numberOfThieves = numberOfThieves;
+    }
+
+    public List<Thing> getThingList() {
+        return thingList;
+    }
+
+    public void isLastParticipant() {
+        if (numberOfOwners.get() == AMOUNT_THREADS_OWNER && numberOfThieves == AMOUNT_THREADS_THIEF) {
+            LOGGER.info("Всего у хозяев было вещей: " + OwnerBuilder.getAllOwnerThings().size());
+            LOGGER.info("Всего в квартире осталось вещей: " + thingList.size());
+            LOGGER.info("Всего воры украли: " + Thief.getAllThievesThings().size());
+
+            if (OwnerBuilder.getAllOwnerThings().size() == thingList.size() + Thief.getAllThievesThings().size()) {
+                LOGGER.info("Все вещи посчитались корректно!");
+            } else {
+                LOGGER.error("Вещи потерялись!");
+            }
+        }
+    }
+
+    public boolean isLastOwner() {
+        return numberOfOwners.get() == AMOUNT_THREADS_OWNER;
+    }
+
+    /* Хозяин выклдавает вещи только если нет воров, вор ворует только если нет других воров и хозяев
+    Участнику для начала своих действий нужен от метода false */
+    public synchronized boolean checkWhoIsInHome(ParticipantEnum participantEnum) {
+        if (participantEnum == ParticipantEnum.OWNER) {
+            return isThiefInHome;
+        } else {
+            return isThiefInHome || isOwnerInHome;
+        }
     }
 }
