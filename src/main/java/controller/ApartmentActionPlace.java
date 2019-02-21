@@ -1,8 +1,6 @@
 package controller;
 
-import model.OwnerBuilder;
 import model.ParticipantEnum;
-import model.Thief;
 import model.Thing;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,79 +12,61 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ApartmentActionPlace {
     private static final Logger LOGGER = LogManager.getLogger();
-
-    /* Количество участников (потоков)*/
-    public static final int AMOUNT_THREADS_OWNER = 1000;
-    public static final int AMOUNT_THREADS_THIEF = 1000;
+    private static ApartmentActionPlace instance;
 
     /* Коллекция хранения вещей. Куда хозяин будет класть, а вор брать*/
-    private final List<Thing> thingList = Collections.synchronizedList(new ArrayList<>());
+    private final List<Thing> thingList;
 
-    private boolean isOwnerInHome;
-    private boolean isThiefInHome;
-    /* Подсчет хозяев и воров, чтобы последний распечатал итоги (сколько вещей осталось в квартире)
-     * Счетчик хозяев будет увеличиваться из разных потоков - сделаем переменную атомарной */
-    private AtomicInteger numberOfOwners = new AtomicInteger(0);
-    private int numberOfThieves;
+    private AtomicInteger isOwnerInHome;
+    private AtomicInteger isThiefInHome;
 
+
+    public static ApartmentActionPlace getInstance() {
+        if (instance == null) {
+            instance = new ApartmentActionPlace();
+        }
+        return instance;
+    }
+
+    private ApartmentActionPlace() {
+        isOwnerInHome = new AtomicInteger(0);
+        isThiefInHome = new AtomicInteger(0);
+        thingList = Collections.synchronizedList(new ArrayList<>());
+    }
 
     public void put(Thing thing, String ownerName) throws InterruptedException {
         LOGGER.info(ownerName + " кладет вещь в квартиру!");
-        Thread.sleep(50);
+        //Thread.sleep(50);
         synchronized (thingList) {
             thingList.add(thing);
         }
     }
 
-    public void setOwnerInHome(boolean ownerInHome) {
-        isOwnerInHome = ownerInHome;
+    public AtomicInteger getIsOwnerInHome() {
+        return isOwnerInHome;
     }
 
-    public void setThiefInHome(boolean thiefInHome) {
-        isThiefInHome = thiefInHome;
-    }
-
-    public AtomicInteger getNumberOfOwners() {
-        return numberOfOwners;
-    }
-
-    public int getNumberOfThieves() {
-        return numberOfThieves;
-    }
-
-    public void setNumberOfThieves(int numberOfThieves) {
-        this.numberOfThieves = numberOfThieves;
+    public AtomicInteger getIsThiefInHome() {
+        return isThiefInHome;
     }
 
     public List<Thing> getThingList() {
         return thingList;
     }
 
-    public void isLastParticipant() {
-        if (numberOfOwners.get() == AMOUNT_THREADS_OWNER && numberOfThieves == AMOUNT_THREADS_THIEF) {
-            LOGGER.info("Всего у хозяев было вещей: " + OwnerBuilder.getAllOwnerThings().size());
-            LOGGER.info("Всего в квартире осталось вещей: " + thingList.size());
-            LOGGER.info("Всего воры украли: " + Thief.getAllThievesThings().size());
-
-            if (OwnerBuilder.getAllOwnerThings().size() == thingList.size() + Thief.getAllThievesThings().size()) {
-                LOGGER.info("Все вещи посчитались корректно!");
-            } else {
-                LOGGER.error("Вещи потерялись!");
-            }
-        }
-    }
-
-    public boolean isLastOwner() {
-        return numberOfOwners.get() == AMOUNT_THREADS_OWNER;
-    }
-
-    /* Хозяин выклдавает вещи только если нет воров, вор ворует только если нет других воров и хозяев
-    Участнику для начала своих действий нужен от метода false */
-    public synchronized boolean checkWhoIsInHome(ParticipantEnum participantEnum) {
+    /* Хозяин выкладывает вещи только если нет воров, вор ворует только если нет других воров и хозяев */
+    public synchronized boolean enterIfCan(ParticipantEnum participantEnum) {
         if (participantEnum == ParticipantEnum.OWNER) {
-            return isThiefInHome;
-        } else {
-            return isThiefInHome || isOwnerInHome;
+            if (isThiefInHome.get() == 0) {
+                isOwnerInHome.incrementAndGet();
+                return true;
+            } else return false;
+        }
+        else {
+            if (isOwnerInHome.get() == 0 && isThiefInHome.get() == 0) {
+                isThiefInHome.incrementAndGet();
+                return true;
+            } else return false;
         }
     }
 }

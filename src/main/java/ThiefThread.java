@@ -1,39 +1,33 @@
 import controller.ApartmentActionPlace;
 import model.ParticipantEnum;
-import model.Thief;
-import model.Thing;
+import model.Thief.Thief;
+import model.Thief.ThiefFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import util.Statistics;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class ThiefThread extends Thread {
     private static final Logger LOGGER = LogManager.getLogger();
 
     private final ApartmentActionPlace actionPlace;
     private Thief thief;
-    private String thiefName = "\"Вор потока " + this.getName().replaceAll("\\D+", "") + "\"";
-    private ReentrantLock reentrantLock;
+    private static String sdf = new SimpleDateFormat("HH:mm:ss.SSS").format(new Date(System.currentTimeMillis()));
 
-    ThiefThread(ApartmentActionPlace actionPlace, Thief thief, ReentrantLock reentrantLock) {
-        this.actionPlace = actionPlace;
-        this.thief = thief;
-        this.reentrantLock = reentrantLock;
+    ThiefThread(ThiefFactory thiefFactory) {
+        this.actionPlace = thiefFactory.getActionPlace();
+        this.thief = thiefFactory.createParticipant();
     }
 
     public void run() {
         steal();
     }
 
-    private synchronized void steal() {
-        reentrantLock.lock();
+    private void steal() {
         try {
-            while (actionPlace.checkWhoIsInHome(ParticipantEnum.THIEF)) {
-                if (reentrantLock.isHeldByCurrentThread()) {
-                    reentrantLock.unlock();
-                }
+            while (!actionPlace.enterIfCan(ParticipantEnum.THIEF)) {
                 synchronized (actionPlace) {
                     actionPlace.wait();
                 }
@@ -42,51 +36,17 @@ public class ThiefThread extends Thread {
             LOGGER.error(e);
         }
 
-        actionPlace.setThiefInHome(true);
+        LOGGER.info(sdf + " " +thief.getThiefName() + " в доме!");
 
-        LOGGER.info(thiefName + " в доме!");
+        thief.snatchFromApartment(actionPlace.getThingList());
 
-        List<Thing> thingList;
-        List<String> resultInfo;
+        actionPlace.getIsThiefInHome().decrementAndGet();
 
-        thief.putIntoBackpack(thiefName);
-
-        thingList = thief.getBackpackListThing();
-        resultInfo = calculateResult(thingList);
-
-        LOGGER.info("Итого " + thiefName + " украл вещей: " + thingList.size() + ". На общую ценность: " + resultInfo.get(1) + ". На общий вес: " + resultInfo.get(0) +
-                ". Предельный размер рюкзака: " + thief.getBackpackMaxWeight() + " кг.");
-
-        actionPlace.setNumberOfThieves(actionPlace.getNumberOfThieves() + 1);
-
-        actionPlace.setThiefInHome(false);
-        if (reentrantLock.isHeldByCurrentThread()) {
-            reentrantLock.unlock();
-        }
-
-        LOGGER.info(thiefName + " вышел из дома!");
-
-        actionPlace.isLastParticipant();
+        Statistics.showThiefResult(thief);
+        LOGGER.info(new SimpleDateFormat("HH:mm:ss.SSS").format(new Date(System.currentTimeMillis())) + " " + thief.getThiefName() + " вышел из дома!");
 
         synchronized (actionPlace) {
             actionPlace.notify();
         }
-    }
-
-    private List<String> calculateResult(List<Thing> listThing) {
-        /* Первое значение: инфо об общем весе, второе: инфо об общей стоимости*/
-        List<String> list = new ArrayList<>();
-
-        int totalWeight = 0;
-        int totalValue = 0;
-
-        for (Thing thing : listThing) {
-            totalValue = totalValue + thing.getValue();
-            totalWeight = totalWeight + thing.getWeight();
-        }
-        list.add(String.valueOf(totalWeight));
-        list.add(String.valueOf(totalValue));
-
-        return list;
     }
 }

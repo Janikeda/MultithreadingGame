@@ -1,36 +1,48 @@
 import controller.ApartmentActionPlace;
-import model.Backpack;
-import model.OwnerBuilder;
-import model.ThiefBuilder;
+import model.Owner.OwnerFactory;
+import model.Thief.ThiefFactory;
+import util.Statistics;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class ApplicationRunner {
+    /* Количество участников (потоков)*/
+    private static final int AMOUNT_THREADS_OWNER = 1000;
+    private static final int AMOUNT_THREADS_THIEF = 1000;
 
     public static void main(String[] args) {
+        /* Иницилиация бизнес-данных */
         List<Thread> ownersAndThieves = new ArrayList<>();
-
-        ApartmentActionPlace actionPlace = new ApartmentActionPlace();
-        ReentrantLock reentrantLock = new ReentrantLock();
 
         OwnerThread ownerThread;
         ThiefThread thiefThread;
 
-        for (int i = 0; i < ApartmentActionPlace.AMOUNT_THREADS_OWNER; i++) {
-            ownerThread = new OwnerThread(actionPlace, OwnerBuilder.createOwner(new Backpack()), reentrantLock);
+        for (int i = 0; i < AMOUNT_THREADS_OWNER; i++) {
+            ownerThread = new OwnerThread(new OwnerFactory());
             ownersAndThieves.add(ownerThread);
+
         }
-        for (int i = 0; i < ApartmentActionPlace.AMOUNT_THREADS_THIEF; i++) {
-            thiefThread = new ThiefThread(actionPlace, ThiefBuilder.createThief(new Backpack(), actionPlace), reentrantLock);
+        for (int i = 0; i < AMOUNT_THREADS_THIEF; i++) {
+            thiefThread = new ThiefThread(new ThiefFactory());
             ownersAndThieves.add(thiefThread);
         }
 
+        /* Запуск потоков и привязка к main thread */
         Collections.shuffle(ownersAndThieves);
         for (Thread thread : ownersAndThieves) {
             thread.start();
         }
+        for (Thread thread : ownersAndThieves) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        /* Сбор и вывод статистики */
+        Statistics.showAllResults(ApartmentActionPlace.getInstance());
     }
 }

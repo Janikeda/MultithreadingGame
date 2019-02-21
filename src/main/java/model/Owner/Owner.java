@@ -1,14 +1,18 @@
-package model;
+package model.Owner;
+
+import model.Backpack;
+import model.Participant;
+import model.Thing;
 
 import java.util.List;
 import java.util.Random;
 
-public class Owner extends AbstractNamedEntity {
+public class Owner extends Participant {
     /* Набор вещей, которые есть у хозяина*/
     private Backpack backpack;
 
-    public Owner(Backpack backpack) {
-        this.backpack = backpack;
+    public Owner() {
+        this.backpack = new Backpack();
     }
 
     public Thing getThing() {
@@ -26,5 +30,9 @@ public class Owner extends AbstractNamedEntity {
 
     public int getAmountOfThings() {
         return backpack.getBackpackList().size();
+    }
+
+    public Backpack getBackpack() {
+        return backpack;
     }
 }
